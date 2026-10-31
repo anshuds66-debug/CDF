@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: cdf
+Version: 0.1.0
+Summary: Capability Drift Framework
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pandas
+Requires-Dist: matplotlib
+Requires-Dist: seaborn
+Requires-Dist: pydantic
+Requires-Dist: pyyaml
+Requires-Dist: openai
+Requires-Dist: tqdm

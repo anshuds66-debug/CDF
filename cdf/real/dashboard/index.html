@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CDF Real-LLM Dashboard</title>
+
+    <link rel="stylesheet" href="styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+
+<header>
+
+    <div class="header-left">
+        <h1>
+            Capability Drift Framework
+            <span class="subtitle">Real-LLM Analysis</span>
+        </h1>
+    </div>
+
+    <nav>
+
+        <button
+            id="nav-providers"
+            class="active"
+            onclick="showSection('providers')">
+            Providers
+        </button>
+
+        <button
+            id="nav-experiment"
+            onclick="showSection('experiment')">
+            Experiment
+        </button>
+
+        <button
+            id="nav-live"
+            onclick="showSection('live')">
+            Live View
+        </button>
+
+        <button
+            id="nav-analysis"
+            onclick="showSection('analysis')">
+            CDF Analysis
+        </button>
+
+        <button
+            id="nav-history"
+            onclick="showSection('history')">
+            History
+        </button>
+
+    </nav>
+
+</header>
+
+
+<main>
+
+
+    <!-- ============================================================
+         PROVIDERS
+         ============================================================ -->
+
+    <section
+        id="sec-providers"
+        class="active">
+
+        <h2>Provider Management</h2>
+
+
+        <div
+            class="card-grid"
+            id="provider-list">
+
+            <p class="placeholder">
+                Loading providers...
+            </p>
+
+        </div>
+
+
+        <div class="card form-card">
+
+            <h3>Add / Edit Provider</h3>
+
+            <form
+                id="provider-form"
+                onsubmit="saveProvider(event)">
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="prov-id">
+                            Provider ID
+                        </label>
+
+                        <input
+                            type="text"
+                            id="prov-id"
+                            placeholder="e.g. my-openai"
+                            required>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="prov-name">
+                            Display Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="prov-name"
+                            placeholder="e.g. My OpenAI"
+                            required>
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="prov-models">
+                        Models
+                        <span class="hint">
+                            comma separated
+                        </span>
+                    </label>
+
+                    <input
+                        type="text"
+                        id="prov-models"
+                        placeholder="gpt-4o, gpt-4.1-mini"
+                        required>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="prov-url">
+                        Base URL
+                        <span class="hint">
+                            leave blank for provider default
+                        </span>
+                    </label>
+
+                    <input
+                        type="text"
+                        id="prov-url"
+                        placeholder="https://api.openai.com/v1">
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="prov-key">
+                        API Key
+                        <span class="hint">
+                            leave blank to keep existing key
+                        </span>
+                    </label>
+
+                    <input
+                        type="password"
+                        id="prov-key"
+                        placeholder="API key">
+
+                </div>
+
+
+                <div class="form-group checkbox-group">
+
+                    <label>
+
+                        <input
+                            type="checkbox"
+                            id="prov-compat"
+                            checked>
+
+                        OpenAI-compatible API
+
+                    </label>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="btn-primary">
+
+                    Save Provider
+
+                </button>
+
+            </form>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- ============================================================
+         EXPERIMENT CONFIGURATION
+         ============================================================ -->
+
+    <section
+        id="sec-experiment">
+
+        <h2>Configure New Experiment</h2>
+
+
+        <form
+            id="exp-form"
+            class="config-form"
+            onsubmit="startExperiment(event)">
+
+
+            <div class="form-row">
+
+                <div class="form-group">
+
+                    <label for="exp-provider">
+                        Provider
+                    </label>
+
+                    <select
+                        id="exp-provider"
+                        onchange="updateModels()">
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="exp-model">
+                        Model
+                    </label>
+
+                    <select
+                        id="exp-model">
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-row">
+
+                <div class="form-group">
+
+                    <label for="exp-horizons">
+                        Horizons
+                        <span class="hint">
+                            comma separated
+                        </span>
+                    </label>
+
+                    <input
+                        type="text"
+                        id="exp-horizons"
+                        value="1, 2, 4, 8, 16, 32">
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="exp-samples">
+                        Samples per Horizon
+                    </label>
+
+                    <input
+                        type="number"
+                        id="exp-samples"
+                        value="10"
+                        min="1">
+
+                </div>
+
+            </div>
+
+
+            <div class="form-row">
+
+                <div class="form-group">
+
+                    <label for="exp-rollouts">
+                        Rollouts (k)
+                    </label>
+
+                    <input
+                        type="number"
+                        id="exp-rollouts"
+                        value="1"
+                        min="1">
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="exp-concurrency">
+                        Concurrency (workers)
+                    </label>
+
+                    <input
+                        type="number"
+                        id="exp-concurrency"
+                        value="4"
+                        min="1"
+                        max="100">
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="exp-temperature">
+                        Temperature
+                    </label>
+
+                    <input
+                        type="number"
+                        id="exp-temperature"
+                        value="0.0"
+                        min="0"
+                        max="2"
+                        step="0.1">
+
+                </div>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="btn-primary">
+
+                ▶ Start Experiment
+
+            </button>
+
+        </form>
+
+    </section>
+
+
+
+    <!-- ============================================================
+         LIVE VIEW
+         ============================================================ -->
+
+    <section
+        id="sec-live">
+
+
+        <div class="live-header">
+
+            <div>
+
+                <h2>
+                    Live Experiment
+                </h2>
+
+                <p
+                    class="exp-id-display"
+                    id="live-exp-id">
+                    None
+                </p>
+
+            </div>
+
+
+            <div class="live-controls">
+
+                <span
+                    id="live-status-badge"
+                    class="badge">
+                    Idle
+                </span>
+
+
+                <button
+                    id="btn-stop"
+                    class="btn-danger"
+                    onclick="stopExperiment()"
+                    style="display:none">
+
+                    ■ Stop
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Live metrics -->
+
+        <div class="metrics-grid">
+
+
+            <div class="metric-card">
+
+                <div class="metric-label">
+                    Progress
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="live-progress">
+                    0 / 0
+                </div>
+
+                <div class="progress-bar">
+
+                    <div
+                        id="progress-fill"
+                        class="progress-fill"
+                        style="width:0%">
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="metric-card">
+
+                <div class="metric-label">
+                    Success Rate
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="live-success">
+                    —
+                </div>
+
+            </div>
+
+
+            <div class="metric-card">
+
+                <div class="metric-label">
+                    Failures
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="live-failures">
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="metric-card">
+
+                <div class="metric-label">
+                    Avg Latency
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="live-latency">
+                    —
+                </div>
+
+            </div>
+
+
+            <div class="metric-card">
+
+                <div class="metric-label">
+                    Total Tokens
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="live-tokens">
+                    0
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- Reliability -->
+
+        <div class="chart-row">
+
+            <div class="chart-card full-width">
+
+                <canvas
+                    id="chart-reliability">
+                </canvas>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Latency / failure -->
+
+        <div class="chart-row">
+
+            <div class="chart-card">
+
+                <canvas
+                    id="chart-latency">
+                </canvas>
+
+            </div>
+
+
+            <div class="chart-card">
+
+                <canvas
+                    id="chart-failure">
+                </canvas>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Event feed -->
+
+        <div class="feed-card">
+
+            <div class="feed-header">
+
+                <h3>
+                    Live Event Feed
+                </h3>
+
+                <button
+                    onclick="clearFeed()">
+                    Clear
+                </button>
+
+            </div>
+
+
+            <div
+                id="live-feed"
+                class="log-box">
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- ============================================================
+         CDF ANALYSIS
+         ============================================================ -->
+
+    <section
+        id="sec-analysis">
+
+        <h2>CDF Analysis</h2>
+
+
+        <div class="analysis-controls">
+
+            <label
+                for="analysis-exp-select">
+
+                Select Experiment:
+
+            </label>
+
+
+            <select
+                id="analysis-exp-select">
+
+                <option value="">
+                    — choose experiment —
+                </option>
+
+            </select>
+
+
+            <button
+                class="btn-primary"
+                onclick="runAnalysis()">
+
+                Compute Metrics
+
+            </button>
+
+        </div>
+
+
+
+        <!-- Loading -->
+
+        <div
+            id="analysis-loading"
+            style="display:none"
+            class="loading">
+
+            Computing CDF metrics…
+
+        </div>
+
+
+
+        <!-- Error / insufficient data -->
+
+        <div
+            id="analysis-error"
+            style="display:none"
+            class="error-box">
+        </div>
+
+
+
+        <!-- Results -->
+
+        <div
+            id="analysis-results"
+            style="display:none">
+
+
+            <!-- Key metrics -->
+
+            <div
+                class="metrics-grid analysis-metrics">
+
+
+                <div
+                    class="metric-card highlight">
+
+                    <div class="metric-label">
+                        Drift Rate λ
+                    </div>
+
+                    <div
+                        class="metric-value"
+                        id="an-lambda">
+                        —
+                    </div>
+
+                    <div
+                        class="metric-sub"
+                        id="an-lambda-ci">
+                    </div>
+
+                </div>
+
+
+                <div class="metric-card">
+
+                    <div class="metric-label">
+                        Amplitude A
+                    </div>
+
+                    <div
+                        class="metric-value"
+                        id="an-A">
+                        —
+                    </div>
+
+                </div>
+
+
+                <div class="metric-card">
+
+                    <div class="metric-label">
+                        Step Reliability
+                        r = e<sup>−λ</sup>
+                    </div>
+
+                    <div
+                        class="metric-value"
+                        id="an-r">
+                        —
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="metric-card highlight">
+
+                    <div class="metric-label">
+                        Fitted H<sub>1/2</sub>
+                    </div>
+
+                    <div
+                        class="metric-value"
+                        id="an-h12">
+                        —
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="metric-card highlight">
+
+                    <div class="metric-label">
+                        Empirical H<sup>50</sup>
+                    </div>
+
+                    <div
+                        class="metric-value"
+                        id="an-h50">
+                        —
+                    </div>
+
+                </div>
+
+
+            </div>
+
+
+
+            <!-- Horizon table -->
+
+            <h3>
+                Horizon Summary
+            </h3>
+
+
+            <div class="table-wrapper">
+
+                <table
+                    class="data-table"
+                    id="an-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                h
+                            </th>
+
+                            <th>
+                                n<sub>h</sub>
+                            </th>
+
+                            <th>
+                                s<sub>h</sub>
+                            </th>
+
+                            <th>
+                                Ŝ(h)
+                            </th>
+
+                            <th>
+                                δ(h)
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody
+                        id="an-table-body">
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+
+            <!-- Reliability chart -->
+
+            <div
+                class="chart-row"
+                style="margin-top:2rem">
+
+                <div
+                    class="chart-card full-width">
+
+                    <canvas
+                        id="chart-an-reliability">
+                    </canvas>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Drift / first failure -->
+
+            <div class="chart-row">
+
+                <div class="chart-card">
+
+                    <canvas
+                        id="chart-an-drift">
+                    </canvas>
+
+                </div>
+
+
+                <div class="chart-card">
+
+                    <canvas
+                        id="chart-an-ff">
+                    </canvas>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </section>
+
+
+
+    <!-- ============================================================
+         HISTORY
+         ============================================================ -->
+
+    <section
+        id="sec-history">
+
+        <h2>
+            Experiment History
+        </h2>
+
+
+        <button
+            onclick="loadHistory()">
+
+            ↻ Refresh
+
+        </button>
+
+
+        <div class="table-wrapper">
+
+            <table
+                class="data-table history-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Experiment ID
+                        </th>
+
+                        <th>
+                            Provider
+                        </th>
+
+                        <th>
+                            Model
+                        </th>
+
+                        <th>
+                            Date
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th>
+                            Completed
+                        </th>
+
+                        <th>
+                            Actions
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody id="history-body">
+
+                    <tr>
+
+                        <td
+                            colspan="7"
+                            class="placeholder">
+
+                            No history yet.
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+
+</main>
+
+
+
+<!-- ================================================================
+     TASK DETAIL MODAL
+     ================================================================ -->
+
+<div
+    id="task-modal"
+    class="modal-overlay"
+    onclick="closeModal(event)">
+
+
+    <div class="modal-box" style="max-width: 850px; width: 90%;">
+
+
+        <button
+            class="modal-close"
+            onclick="closeTaskModal()">
+
+            ✕
+
+        </button>
+
+
+        <h3 id="task-modal-title">
+            Task Inspection
+        </h3>
+
+
+        <div id="task-list-container" style="max-height: 180px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid #ced4da; border-radius: 4px;">
+            <table class="data-table" style="width: 100%; font-size: 0.85rem; margin: 0;">
+                <thead>
+                    <tr>
+                        <th>Task ID</th>
+                        <th>Horizon</th>
+                        <th>Rollout</th>
+                        <th>Status</th>
+                        <th>Latency</th>
+                        <th>Select</th>
+                    </tr>
+                </thead>
+                <tbody id="task-modal-list"></tbody>
+            </table>
+        </div>
+
+
+        <h4 style="margin: 0.5rem 0; font-size: 0.95rem; color: #2c3e50;">
+            Selected Task Details
+        </h4>
+
+
+        <div
+            id="task-detail-content"
+            class="task-detail-grid"
+            style="max-height: 350px; overflow-y: auto;">
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<script src="app.js"></script>
+
+</body>
+
+</html>

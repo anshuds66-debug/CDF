@@ -1,0 +1,9 @@
+numpy
+scipy
+pandas
+matplotlib
+seaborn
+pydantic
+pyyaml
+openai
+tqdm
