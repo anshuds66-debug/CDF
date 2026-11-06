@@ -188,13 +188,26 @@ async function loadProviders() {
                               `
                             : ''
                     }
+                    ${
+                        !p.is_fake
+                            ? `
+                                <button
+                                    class="btn-sm btn-primary"
+                                    onclick="editProviderKey('${escapeJs(p.id)}')"
+                                >
+                                    Edit API Key
+                                </button>
+                              `
+                            : ''
+                    }
 
                 </div>
 
-                <p
+                <div
                     id="test-result-${escapeHtml(p.id)}"
+                    class="provider-test-result"
                     style="font-size:0.78rem;margin-top:0.4rem"
-                ></p>
+                ></div>
             `;
 
             list.appendChild(card);
@@ -296,7 +309,34 @@ async function saveProvider(e) {
         );
     }
 }
+function editProviderKey(providerId) {
+    const provider = providersData.find(p => p.id === providerId);
 
+    if (!provider || provider.is_fake) {
+        return;
+    }
+
+    // Prefill provider details so the existing save endpoint
+    // receives the required fields. Never prefill the secret.
+    document.getElementById('prov-id').value = provider.id;
+    document.getElementById('prov-name').value = provider.name;
+    document.getElementById('prov-models').value =
+        provider.models.join(', ');
+    document.getElementById('prov-url').value =
+        provider.base_url || '';
+    document.getElementById('prov-compat').checked =
+        provider.is_openai_compatible;
+    document.getElementById('prov-key').value = '';
+    document.getElementById('prov-key').placeholder =
+        'Enter replacement API key';
+
+    document.getElementById('provider-form').scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+    });
+
+    document.getElementById('prov-key').focus();
+}
 
 // ── Provider delete ─────────────────────────────────────────────────────
 
@@ -350,6 +390,7 @@ async function testProvider(id) {
         return;
     }
 
+    el.className = 'provider-test-result';
     el.textContent = 'Testing…';
     el.style.color = '#7f8c8d';
 
@@ -373,11 +414,64 @@ async function testProvider(id) {
 
         } else {
 
-            el.textContent =
-                `✗ ${data.message}`;
+            const message =
+                data.message ||
+                'Unknown provider error';
 
-            el.style.color =
-                '#e74c3c';
+            if (/free-models-per-day/i.test(message)) {
+
+                el.className =
+                    'provider-test-result provider-rate-limit-notice';
+
+                el.replaceChildren();
+
+                const title =
+                    document.createElement('strong');
+
+                title.textContent =
+                    'Daily free-model limit reached';
+
+                const explanation =
+                    document.createElement('span');
+
+                explanation.textContent =
+                    'This provider has used its free requests for today. Wait for the daily reset or add credits to continue.';
+
+                const details =
+                    document.createElement('details');
+
+                const summary =
+                    document.createElement('summary');
+
+                summary.textContent =
+                    'Details';
+
+                const raw =
+                    document.createElement('pre');
+
+                raw.textContent =
+                    message;
+
+                details.append(
+                    summary,
+                    raw
+                );
+
+                el.append(
+                    title,
+                    explanation,
+                    details
+                );
+
+            } else {
+
+                el.textContent =
+                    `✗ ${message}`;
+
+                el.style.color =
+                    '#e74c3c';
+
+            }
         }
 
     } catch (err) {
@@ -388,6 +482,7 @@ async function testProvider(id) {
         el.style.color =
             '#e74c3c';
     }
+    
 }
 
 
@@ -954,16 +1049,27 @@ function handleEvent(ev) {
                     ? 'API error'
                     : 'Task error';
 
-            logFeed(
-                `${errorLabel} — ${
-                    ev.task_id ||
-                    `h=${ev.horizon}`
-                }: ${
-                    ev.error_message ||
-                    'Unknown error'
-                }`,
-                'error'
-            );
+            const rawError =
+                ev.error_message ||
+                'Unknown error';
+
+            if (
+                ev.is_api_error &&
+                /free-models-per-day/i.test(rawError)
+            ) {
+                logFreeModelLimitNotice(
+                    ev.experiment_id,
+                    rawError
+                );
+            } else {
+                logFeed(
+                    `${errorLabel} — ${
+                        ev.task_id ||
+                        `h=${ev.horizon}`
+                    }: ${rawError}`,
+                    'error'
+                );
+            }
 
             updateCharts();
 
@@ -1163,6 +1269,88 @@ function logFeed(
         feed.removeChild(
             feed.lastChild
         );
+    }
+}
+
+
+function logFreeModelLimitNotice(experimentId, rawError) {
+
+    const feed =
+        document.getElementById('live-feed');
+
+    if (!feed) {
+        return;
+    }
+
+    const alreadyShown =
+        Array.from(
+            feed.querySelectorAll('.free-limit-notice')
+        ).some(
+            item => item.dataset.experimentId === experimentId
+        );
+
+    if (alreadyShown) {
+        return;
+    }
+
+    const box =
+        document.createElement('div');
+
+    box.className =
+        'log-item error free-limit-notice';
+
+    box.dataset.experimentId =
+        experimentId || '';
+
+    const timestamp =
+        document.createElement('small');
+
+    timestamp.textContent =
+        `[${new Date().toLocaleTimeString()}] `;
+
+    const title =
+        document.createElement('strong');
+
+    title.textContent =
+        'Daily free-model limit reached';
+
+    const message =
+        document.createElement('p');
+
+    message.textContent =
+        'This provider has used its free requests for today. Wait for the daily reset or add credits to continue.';
+
+    const details =
+        document.createElement('details');
+
+    const summary =
+        document.createElement('summary');
+
+    summary.textContent =
+        'Details';
+
+    const error =
+        document.createElement('pre');
+
+    error.textContent =
+        rawError;
+
+    details.append(
+        summary,
+        error
+    );
+
+    box.append(
+        timestamp,
+        title,
+        message,
+        details
+    );
+
+    feed.prepend(box);
+
+    while (feed.children.length > 200) {
+        feed.removeChild(feed.lastChild);
     }
 }
 

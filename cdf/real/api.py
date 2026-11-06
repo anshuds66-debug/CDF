@@ -446,17 +446,34 @@ async def test_provider(
         else "gpt-3.5-turbo"
     )
 
-    adapter = get_adapter(
-        provider_id,
-        is_openai_compatible=(
-            p_conf.is_openai_compatible
-        ),
-        model=model,
-        api_key=api_key,
-        base_url=p_conf.base_url,
-        max_retries=0,
-        timeout=10,
-    )
+    try:
+        adapter = get_adapter(
+            provider_id,
+            is_openai_compatible=(
+                p_conf.is_openai_compatible
+            ),
+            model=model,
+            api_key=api_key,
+            base_url=p_conf.base_url,
+            max_retries=0,
+            timeout=10,
+        )
+    except NotImplementedError as exc:
+        return JSONResponse(
+            {
+                "ok": False,
+                "message": str(exc),
+            },
+            status_code=501,
+        )
+    except ImportError as exc:
+        return JSONResponse(
+            {
+                "ok": False,
+                "message": str(exc),
+            },
+            status_code=503,
+        )
 
     # Simple connectivity request.
     resp = await adapter.generate(

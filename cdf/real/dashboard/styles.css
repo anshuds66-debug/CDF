@@ -772,6 +772,52 @@ button:disabled {
     color: #5dade2;
 }
 
+.provider-rate-limit-notice {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.65rem;
+    border: 1px solid #f0c36d;
+    border-radius: 6px;
+    background: #fff8e7;
+    color: #5c4512;
+    line-height: 1.45;
+}
+
+.provider-rate-limit-notice summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.provider-rate-limit-notice pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 0.75rem;
+}
+
+.log-item.free-limit-notice {
+    padding: 0.85rem;
+    margin: 0.5rem 0;
+    border: 1px solid #f0c36d;
+    border-radius: 6px;
+    background: #fff8e7;
+    color: #5c4512;
+}
+
+.free-limit-notice p {
+    margin: 0.4rem 0;
+}
+
+.free-limit-notice summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.free-limit-notice pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 0.8rem;
+}
+
 
 /* ── Analysis section ──────────────────────────────────────────── */
 

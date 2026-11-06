@@ -122,6 +122,122 @@ class OpenAICompatibleAdapter(BaseLLMAdapter):
                 backoff *= 2.0
 
 
+class GeminiAdapter(BaseLLMAdapter):
+    """Adapter for the native Google Gemini Developer API."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        try:
+            from google import genai
+            from google.genai import types
+        except ImportError as exc:
+            raise ImportError(
+                "Gemini support requires the 'google-genai' package. "
+                "Install project dependencies with: pip install -r requirements.txt"
+            ) from exc
+
+        self._genai_types = types
+        self.client = genai.Client(
+            api_key=self.api_key,
+            http_options=types.HttpOptions(
+                timeout=self.timeout * 1000
+            ),
+        ).aio
+
+    async def generate(
+        self,
+        messages: List[Dict[str, str]],
+        seed: int = 0,
+    ) -> LLMResponse:
+
+        system_parts = []
+        contents = []
+
+        for message in messages:
+            role = message.get("role", "user")
+            content = message.get("content", "")
+
+            if role in {"system", "developer"}:
+                if content:
+                    system_parts.append(content)
+                continue
+
+            gemini_role = "model" if role == "assistant" else "user"
+            contents.append(
+                {
+                    "role": gemini_role,
+                    "parts": [{"text": content}],
+                }
+            )
+
+        if not contents:
+            return LLMResponse(
+                text="",
+                model=self.model,
+                error="Gemini request must include at least one user or assistant message.",
+            )
+
+        config = {
+            "temperature": self.temperature,
+            "seed": int(seed),
+        }
+        if system_parts:
+            config["system_instruction"] = "\n\n".join(system_parts)
+
+        retries = 0
+        backoff = 1.0
+
+        while retries <= self.max_retries:
+            started = time.time()
+
+            try:
+                response = await self.client.models.generate_content(
+                    model=self.model,
+                    contents=contents,
+                    config=self._genai_types.GenerateContentConfig(**config),
+                )
+
+                usage = getattr(response, "usage_metadata", None)
+                candidates = getattr(response, "candidates", None) or []
+                finish_reason = None
+                if candidates:
+                    reason = getattr(candidates[0], "finish_reason", None)
+                    finish_reason = getattr(reason, "name", None) or (
+                        str(reason) if reason is not None else None
+                    )
+
+                return LLMResponse(
+                    text=response.text or "",
+                    input_tokens=getattr(usage, "prompt_token_count", None),
+                    output_tokens=getattr(usage, "candidates_token_count", None),
+                    total_tokens=getattr(usage, "total_token_count", None),
+                    finish_reason=finish_reason,
+                    latency=time.time() - started,
+                    model=(
+                        getattr(response, "model_version", None)
+                        or self.model
+                    ),
+                )
+
+            except Exception as exc:
+                retries += 1
+
+                if retries > self.max_retries:
+                    return LLMResponse(
+                        text="",
+                        latency=time.time() - started,
+                        model=self.model,
+                        error=str(exc),
+                    )
+
+                await asyncio.sleep(
+                    backoff
+                    + (asyncio.get_event_loop().time() % 0.1)
+                )
+                backoff *= 2.0
+
+
 class FakeAdapter(BaseLLMAdapter):
     """
     Deterministic local adapter used for dashboard/backend testing.
@@ -354,9 +470,10 @@ def get_adapter(
     elif is_openai_compatible:
         return OpenAICompatibleAdapter(**kwargs)
 
+    elif provider_id.lower() == "gemini":
+        return GeminiAdapter(**kwargs)
+
     else:
-        # For non-compatible providers, e.g. native Gemini,
-        # a dedicated adapter can be implemented later.
         raise NotImplementedError(
             f"Provider {provider_id} adapter not yet implemented."
         )
